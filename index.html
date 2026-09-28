@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>효소–기질 입체 구조 관찰 | 열쇠-자물쇠 모델과 유도 적합 모델</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/molstar@4/build/viewer/molstar.css">
+<script src="https://cdn.jsdelivr.net/npm/molstar@4/build/viewer/molstar.js"></script>
+<style>
+  :root{
+    --ink:#1b2430; --paper:#f7f9fb; --line:#d5dde6; --muted:#5d6b7b;
+    --apo:#2a6f97; --holo:#c2410c; --key:#0e7c7b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Pretendard,-apple-system,"Malgun Gothic",sans-serif;color:var(--ink);background:var(--paper);line-height:1.55}
+  header{padding:22px 28px 14px;border-bottom:1px solid var(--line);background:#fff}
+  header h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+  header p{margin:6px 0 0;color:var(--muted);font-size:14px}
+  main{padding:18px 28px 40px;max-width:1400px;margin:0 auto}
+
+  .presets{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .preset{border:1px solid var(--line);background:#fff;border-radius:8px;padding:10px 14px;cursor:pointer;text-align:left;font:inherit;color:var(--ink)}
+  .preset small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .preset[data-model="lock"]{border-left:4px solid var(--key)}
+  .preset[data-model="fit"]{border-left:4px solid var(--holo)}
+  .preset.active{background:#eef3f8;border-color:#9fb3c8}
+  :focus-visible{outline:3px solid #8bb8ff;outline-offset:2px}
+
+  /* 도구 막대 */
+  .tools{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:13.5px}
+  .tools .group{display:flex;gap:8px;align-items:center}
+  .tools .group > span:first-child{color:var(--muted);font-size:12.5px}
+  .tools button{font:inherit;font-size:13px;padding:6px 11px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+  .tools button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .tools select{font:inherit;font-size:13px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:#fff}
+  .tools input[type=color]{width:34px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer}
+  .tools label{display:flex;gap:6px;align-items:center}
+  .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+
+  .stage{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+  .panel h2{margin:0;padding:10px 14px;font-size:15px;font-weight:600;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .panel h2 .id{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--muted);font-weight:500}
+  .panel.apo h2{border-top:4px solid var(--apo)}
+  .panel.holo h2{border-top:4px solid var(--holo)}
+  .viewer{position:relative;height:460px;background:#fff}
+  .viewer .msp-plugin{position:absolute;inset:0}
+  .status{position:absolute;left:10px;bottom:8px;font-size:12px;color:var(--muted);background:rgba(255,255,255,.85);padding:2px 8px;border-radius:4px;pointer-events:none}
+
+  .note,.custom,.sheet{margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 20px;font-size:14.5px}
+  .note h3{margin:0 0 6px;font-size:16px}
+  .note p{margin:0 0 8px;max-width:78ch}
+  .note ol{margin:6px 0 0 18px;padding:0;max-width:78ch}
+  .note li{margin:3px 0}
+
+  .custom{display:flex;gap:12px;align-items:end;flex-wrap:wrap;font-size:14px;padding:14px 20px}
+  .custom label{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:12.5px}
+  .custom input{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:6px;width:120px;text-transform:uppercase}
+  .custom button{font:inherit;padding:8px 14px;border-radius:6px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
+  .links{margin-left:auto;display:flex;gap:14px;font-size:13px}
+  .links a{color:var(--apo)}
+
+  /* 활동지 */
+  .sheet summary{cursor:pointer;font-weight:600;font-size:16px}
+  .sheet .head{display:flex;gap:24px;margin:14px 0 10px;flex-wrap:wrap}
+  .sheet .head span{border-bottom:1px solid var(--ink);min-width:180px;display:inline-block;padding:0 6px}
+  .sheet table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+  .sheet th,.sheet td{border:1px solid #9aa7b5;padding:8px;vertical-align:top;text-align:left}
+  .sheet th{background:#eef2f6;font-weight:600}
+  .sheet td.blank{height:64px}
+  .sheet .q{margin-top:14px}
+  .sheet .q p{margin:0 0 4px}
+  .sheet .lines{height:70px;border-bottom:1px solid #9aa7b5;background:repeating-linear-gradient(transparent,transparent 22px,#c9d2dc 22px,#c9d2dc 23px)}
+  .sheet .printbtn{margin-top:12px;font:inherit;padding:7px 12px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer}
+
+  @media (max-width:900px){.stage{grid-template-columns:1fr}.viewer{height:380px}main,header{padding-left:14px;padding-right:14px}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media print{
+    header,.presets,.tools,.stage,.note,.custom,.sheet summary,.sheet .printbtn{display:none!important}
+    body{background:#fff}main{padding:0;max-width:none}
+    .sheet{border:0;padding:0;margin:0}
+    .sheet[open] > *{display:block}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>효소–기질 입체 구조 관찰</h1>
+  <p>왼쪽은 기질이 없는 효소, 오른쪽은 기질(또는 억제제)이 결합한 효소입니다. <span class="swatch" id="swEnz"></span>효소와 <span class="swatch" id="swSub"></span>기질은 서로 다른 색으로 표시됩니다.</p>
+</header>
+
+<main>
+  <div class="presets" id="presets"></div>
+
+  <div class="tools">
+    <div class="group">
+      <span>보기</span>
+      <button id="btnFocus" title="오른쪽 뷰어에서 기질이 있는 자리로 확대합니다">기질 부위 확대</button>
+      <button id="btnReset">전체 보기</button>
+      <button id="btnSurface" title="효소의 분자 표면을 반투명하게 겹쳐 활성 부위 홈을 보여 줍니다">표면 겹쳐 보기</button>
+    </div>
+    <div class="group">
+      <span>회전</span>
+      <button id="btnSync" class="on" title="한쪽을 돌리면 다른 쪽도 같은 방향으로 돕니다">양쪽 함께 돌리기</button>
+      <button id="btnAlign" title="오른쪽 방향을 왼쪽에 한 번 맞춥니다">방향 맞추기</button>
+    </div>
+    <div class="group">
+      <span>결합 부위</span>
+      <button id="btnSite" title="기질에서 일정 거리 안에 있는 효소의 아미노산을 골라 다른 색으로 보여 줍니다. 왼쪽 단독 구조에서도 같은 번호의 잔기를 칠합니다">결합 부위 강조</button>
+      <select id="selRadius" title="기질로부터의 거리">
+        <option value="4">4 Å 이내</option>
+        <option value="5" selected>5 Å 이내</option>
+        <option value="6">6 Å 이내</option>
+      </select>
+      <input type="color" id="colSite" value="#22b14c" title="결합 부위 색">
+      <label title="결합 부위를 칠할 때 나머지 효소를 옅게 합니다"><input type="checkbox" id="chkDim" checked> 나머지 옅게</label>
+    </div>
+    <div class="group">
+      <span>효소 색</span>
+      <select id="selEnz">
+        <option value="uniform">단색</option>
+        <option value="secondary-structure">2차 구조별</option>
+        <option value="sequence-id">N→C 순서</option>
+        <option value="chain-id">사슬별</option>
+      </select>
+      <input type="color" id="colEnz" value="#4a86b8" title="효소 단색">
+    </div>
+    <div class="group">
+      <span>기질 색</span>
+      <select id="selSub">
+        <option value="uniform">단색</option>
+        <option value="element-symbol">원소별</option>
+      </select>
+      <input type="color" id="colSub" value="#ff8c1a" title="기질 단색">
+    </div>
+  </div>
+
+  <div class="stage">
+    <section class="panel apo">
+      <h2><span>효소 단독 (apo)</span><span class="id" id="idA"></span></h2>
+      <div class="viewer"><div id="viewerA"></div><div class="status" id="statusA">불러오는 중…</div></div>
+    </section>
+    <section class="panel holo">
+      <h2><span>효소 + 기질 복합체 (holo)</span><span class="id" id="idB"></span></h2>
+      <div class="viewer"><div id="viewerB"></div><div class="status" id="statusB">불러오는 중…</div></div>
+    </section>
+  </div>
+
+  <div class="note" id="note"></div>
+
+  <div class="custom">
+    <label>효소 단독 PDB ID <input id="inA" maxlength="4" placeholder="4AKE"></label>
+    <label>복합체 PDB ID <input id="inB" maxlength="4" placeholder="1AKE"></label>
+    <button id="loadBtn">이 구조로 보기</button>
+    <div class="links">
+      <a id="lnkRcsb" href="#" target="_blank" rel="noopener">RCSB PDB에서 보기</a>
+      <a id="lnkNcbi" href="#" target="_blank" rel="noopener">NCBI iCn3D에서 보기</a>
+    </div>
+  </div>
+
+  <details class="sheet" id="sheet">
+    <summary>학생 활동지 — 효소와 기질의 결합 모형 관찰</summary>
+    <div class="head"><label>학년·반·번호 <span></span></label><label>이름 <span></span></label></div>
+    <table>
+      <thead><tr><th style="width:15%">효소</th><th style="width:14%">PDB ID<br>(단독 / 복합체)</th><th>기질이 결합했을 때 효소 모양은 어떻게 달라졌나? (활성 부위 주변을 중심으로)</th><th style="width:15%">가까운 모형<br>(열쇠-자물쇠 / 유도 적합)</th><th style="width:22%">그렇게 판단한 근거</th></tr></thead>
+      <tbody id="sheetRows"></tbody>
+    </table>
+    <div class="q"><p>1. 유도 적합 모델에서 효소가 기질을 감싸며 모양을 바꾸는 것이 반응에 유리한 이유를 설명해 보자.</p><div class="lines"></div></div>
+    <div class="q"><p>2. 억제제(예: 트립신의 벤즈아미딘)가 기질과 비슷한 모양으로 활성 부위에 들어가면 어떤 일이 일어날지 예상해 보자.</p><div class="lines"></div></div>
+    <div class="q"><p>3. 두 모델 중 어느 하나만으로 모든 효소를 설명할 수 있을까? 오늘 관찰한 구조를 근거로 자신의 생각을 써 보자.</p><div class="lines"></div></div>
+    <button class="printbtn" id="btnPrint">활동지 인쇄</button>
+  </details>
+</main>
+
+<script>
+const PRESETS = [
+  { model:"lock", name:"라이소자임", sub:"열쇠-자물쇠 모델 · 기질: 세균 세포벽 당사슬 조각(NAG)", apo:"2LYZ", holo:"1HEW",
+    title:"라이소자임 — 열쇠-자물쇠에 가까운 결합",
+    body:"라이소자임의 활성 부위는 처음부터 깊은 홈(cleft) 형태로 만들어져 있고, 세균 세포벽의 당사슬이 그 홈에 끼워지듯 들어갑니다. 기질이 없을 때(왼쪽)와 있을 때(오른쪽) 효소의 전체 뼈대가 거의 같은 모양을 유지하는지 확인해 보세요.",
+    steps:["‘기질 부위 확대’를 눌러 기질(당사슬)이 홈에 들어간 모습을 봅니다.","‘결합 부위 강조’를 켜면 기질을 감싸는 아미노산이 초록으로 표시되고, 왼쪽 단독 구조에서도 같은 번호의 잔기가 칠해집니다. 홈이 이미 준비되어 있는지 비교해 보세요.","기질 주변을 감싸는 아미노산 곁사슬을 찾아 보세요."] },
+  { model:"lock", name:"트립신", sub:"열쇠-자물쇠 모델 · 억제제 벤즈아미딘이 결합 주머니에 끼워짐", apo:"2PTN", holo:"3PTB",
+    title:"트립신 — 미리 준비된 결합 주머니",
+    body:"트립신은 라이신·아르지닌 옆의 펩타이드 결합을 자릅니다. 활성 부위 아래에는 이 양전하 곁사슬이 딱 들어가는 좁은 주머니가 미리 있고, 오른쪽 구조에서는 아르지닌과 모양이 비슷한 억제제 벤즈아미딘이 그 주머니에 꽂혀 있습니다.",
+    steps:["오른쪽에서 작은 고리 분자(벤즈아미딘)를 찾아 확대합니다.","‘표면 겹쳐 보기’로 왼쪽 단독 구조에도 같은 주머니가 이미 있는지 살펴봅니다."] },
+  { model:"fit", name:"아데닐산 인산화효소", sub:"유도 적합 모델 · 기질 유사체 Ap5A 결합 시 뚜껑이 닫힘", apo:"4AKE", holo:"1AKE",
+    title:"아데닐산 인산화효소 — 기질이 들어오면 문이 닫힌다",
+    body:"ATP + AMP → 2 ADP 반응을 촉매하는 효소입니다. 기질이 없으면(왼쪽) 두 개의 뚜껑 도메인이 활짝 열려 있지만, 기질 유사체가 결합하면(오른쪽) 뚜껑이 접혀 기질을 완전히 감쌉니다. 모양 변화가 매우 커서 유도 적합을 보여 주는 대표 사례입니다.",
+    steps:["‘양쪽 함께 돌리기’를 켠 채 돌리면서 열린 팔(도메인)이 어디로 이동했는지 봅니다.","오른쪽 가운데 묻혀 있는 Ap5A(ATP와 AMP를 이어 붙인 모양)를 찾습니다.","물이 빠진 닫힌 공간에서 반응이 일어나는 이유를 생각해 봅니다."] },
+  { model:"fit", name:"글루코키네이스", sub:"유도 적합 모델 · 포도당 결합 시 두 엽이 오므라듦", apo:"1V4T", holo:"1V4S",
+    title:"글루코키네이스 — 포도당이 효소를 닫는다",
+    body:"간과 이자 β세포에서 포도당을 인산화하는 헥소키네이스의 한 종류입니다. 포도당이 없으면(왼쪽) 큰 엽과 작은 엽이 크게 벌어진 ‘초개방’ 상태이고, 포도당이 결합하면(오른쪽) 두 엽이 오므라들어 활성 부위가 완성됩니다.",
+    steps:["오른쪽 두 엽 사이에 끼인 작은 고리 분자(포도당)를 찾습니다.","왼쪽에서는 같은 자리가 얼마나 벌어져 있는지 비교합니다."] }
+];
+
+const $ = id => document.getElementById(id);
+const hexToInt = h => parseInt(h.slice(1), 16);
+const state = { A:null, B:null, surfaceOn:false, siteOn:false, syncOn:true, syncing:false, last:{A:null,B:null} };
+let viewerA, viewerB;
+
+/* ── 구조 불러오기: 효소(단백질)와 기질(리간드·당)을 따로 만들어 각각 색을 입힌다 ── */
+async function loadStructure(viewer, pdb, statusEl){
+  const plugin = viewer.plugin;
+  statusEl.textContent = pdb + " 불러오는 중…";
+  await plugin.clear();
+  const data = await plugin.builders.data.download({ url:`https://files.rcsb.org/download/${pdb}.cif` }, { state:{ isGhost:true } });
+  const traj = await plugin.builders.structure.parseTrajectory(data, "mmcif");
+  const model = await plugin.builders.structure.createModel(traj);
+  const structure = await plugin.builders.structure.createStructure(model);
+  const B = plugin.builders.structure;
+  const enzyme = await B.tryCreateComponentStatic(structure, "polymer");
+  const ligand = await B.tryCreateComponentStatic(structure, "ligand");
+  const branched = await B.tryCreateComponentStatic(structure, "branched");
+  const ion = await B.tryCreateComponentStatic(structure, "ion");
+  const r = { enzyme:null, sub:[] };
+  const enzTheme = themeFor($("selEnz").value, $("colEnz").value);
+  const subTheme = themeFor($("selSub").value, $("colSub").value);
+  if(enzyme) r.enzyme = await B.representation.addRepresentation(enzyme, { type:"cartoon", ...enzTheme });
+  for(const c of [ligand, branched]){
+    if(c) r.sub.push(await B.representation.addRepresentation(c, { type:"ball-and-stick", ...subTheme }));
+  }
+  if(ion) await B.representation.addRepresentation(ion, { type:"ball-and-stick", color:"uniform", colorParams:{ value:0x9aa7b5 } });
+  const subs = [ligand, branched].filter(Boolean);
+  return { pdb, structure, enzyme, subs, ion, reprs:r, surface:null, siteComp:null, site:null };
+}
+
+/* ── 결합 부위 강조: 기질 반경 안의 효소 잔기를 따로 뽑아 다른 색으로 칠한다 ── */
+const ap = (name, args) => ({ head:{ name }, args });
+const MS = {
+  atomGroups: a => ap("structure-query.generator.atom-groups", a),
+  surroundings: (sel, r) => ap("structure-query.modifier.include-surroundings", { 0:sel, radius:r, "as-whole-residues":true }),
+  exceptBy: (sel, by) => ap("structure-query.modifier.except-by", { 0:sel, by }),
+  compId: () => ap("structure-query.atom-property.macromolecular.label_comp_id"),
+  authAsym: () => ap("structure-query.atom-property.macromolecular.auth_asym_id"),
+  authSeq: () => ap("structure-query.atom-property.macromolecular.auth_seq_id"),
+  setHas: (set, v) => ap("core.set.has", [set, v]),
+  set: arr => ap("core.type.set", arr),
+  eq: (a, b) => ap("core.rel.eq", [a, b]),
+  and: arr => ap("core.logic.and", arr),
+  or: arr => ap("core.logic.or", arr)
+};
+
+function compIds(sels){
+  const ids = new Set();
+  for(const sel of sels){
+    const st = sel && sel.obj && sel.obj.data; if(!st) continue;
+    for(const u of st.units){
+      const h = u.model.atomicHierarchy; if(!h) continue;
+      for(let j = 0; j < u.elements.length; j++) ids.add(h.atoms.label_comp_id.value(u.elements[j]));
+    }
+  }
+  return [...ids];
+}
+function residueKeys(st){
+  const seen = new Set(), out = [];
+  for(const u of st.units){
+    const h = u.model.atomicHierarchy; if(!h) continue;
+    for(let j = 0; j < u.elements.length; j++){
+      const a = u.elements[j], r = h.residueAtomSegments.index[a], c = h.chainAtomSegments.index[a];
+      const key = h.chains.auth_asym_id.value(c) + ":" + h.residues.auth_seq_id.value(r);
+      if(!seen.has(key)){ seen.add(key); out.push([h.chains.auth_asym_id.value(c), h.residues.auth_seq_id.value(r)]); }
+    }
+  }
+  return out;
+}
+function residueExpr(keys){
+  return MS.atomGroups({ "residue-test": MS.or(keys.map(([c, n]) => MS.and([MS.eq(MS.authAsym(), c), MS.eq(MS.authSeq(), n)]))) });
+}
+
+async function addSite(viewer, s, expr, label){
+  const B = viewer.plugin.builders.structure;
+  const comp = await B.tryCreateComponentFromExpression(s.structure, expr, "site-" + s.pdb, { label });
+  if(!comp || !comp.obj || !comp.obj.data || comp.obj.data.elementCount === 0) return null;
+  s.siteComp = comp;
+  s.site = await B.representation.addRepresentation(comp, { type:"ball-and-stick", color:"uniform", colorParams:{ value:hexToInt($("colSite").value) } });
+  return comp;
+}
+async function removeSite(viewer, s){
+  if(s.siteComp){ await viewer.plugin.state.data.build().delete(s.siteComp.ref).commit(); }
+  s.siteComp = null; s.site = null;
+}
+async function dimEnzyme(dim){
+  const alpha = dim ? 0.3 : 1;
+  for(const [v, s] of [[viewerA, state.A],[viewerB, state.B]]){
+    if(!s || !s.reprs.enzyme) continue;
+    await v.plugin.state.data.build().to(s.reprs.enzyme).update(old => { old.type.params.alpha = alpha; }).commit();
+  }
+}
+async function setSite(on){
+  state.siteOn = on;
+  $("btnSite").classList.toggle("on", on);
+  for(const [v, s] of [[viewerA, state.A],[viewerB, state.B]]) if(s) await removeSite(v, s);
+  if(!on){ await dimEnzyme(false); return; }
+  const sB = state.B;
+  if(!sB || !sB.subs.length){ $("statusB").textContent = "이 구조에는 기질로 표시할 분자가 없어 결합 부위를 찾을 수 없습니다."; state.siteOn = false; $("btnSite").classList.remove("on"); return; }
+  const radius = Number($("selRadius").value);
+  const subIds = compIds(sB.subs);
+  const excl = [...new Set([...subIds, ...compIds([sB.ion]), "HOH", "WAT", "DOD"])];
+  const subExpr = MS.atomGroups({ "residue-test": MS.setHas(MS.set(subIds), MS.compId()) });
+  const exclExpr = MS.atomGroups({ "residue-test": MS.setHas(MS.set(excl), MS.compId()) });
+  const siteExpr = MS.exceptBy(MS.surroundings(subExpr, radius), exclExpr);
+  try{
+    const comp = await addSite(viewerB, sB, siteExpr, `결합 부위 (${radius} Å)`);
+    if(!comp){ $("statusB").textContent = "기질 주변에서 효소 잔기를 찾지 못했습니다."; return; }
+    const keys = residueKeys(comp.obj.data);
+    $("statusB").textContent = `결합 부위 잔기 ${keys.length}개: ` + keys.map(([c, n]) => c + n).join(", ");
+    if(state.A){
+      const compA = await addSite(viewerA, state.A, residueExpr(keys), "결합 부위 (복합체와 같은 잔기)");
+      $("statusA").textContent = compA ? "복합체에서 찾은 결합 부위와 같은 번호의 잔기를 칠했습니다." : "같은 번호의 잔기를 찾지 못했습니다 (사슬 이름이 다를 수 있음).";
+    }
+    if($("chkDim").checked) await dimEnzyme(true);
+  }catch(e){
+    console.error(e);
+    $("statusB").textContent = "결합 부위를 만드는 중 오류가 났습니다.";
+  }
+}
+
+function themeFor(name, hex){
+  return name === "uniform" ? { color:"uniform", colorParams:{ value:hexToInt(hex) } } : { color:name };
+}
+
+async function recolor(viewer, reprSel, name, hex){
+  if(!reprSel) return;
+  const params = name === "uniform" ? { name:"uniform", params:{ value:hexToInt(hex) } } : { name, params:{} };
+  await viewer.plugin.state.data.build().to(reprSel).update(old => { old.colorTheme = params; }).commit();
+}
+
+async function applyColors(){
+  $("swEnz").style.background = $("colEnz").value;
+  $("swSub").style.background = $("colSub").value;
+  for(const [v, s] of [[viewerA, state.A],[viewerB, state.B]]){
+    if(!s) continue;
+    await recolor(v, s.reprs.enzyme, $("selEnz").value, $("colEnz").value);
+    for(const rs of s.reprs.sub) await recolor(v, rs, $("selSub").value, $("colSub").value);
+    if(s.surface) await recolor(v, s.surface, $("selEnz").value, $("colEnz").value);
+    if(s.site) await recolor(v, s.site, "uniform", $("colSite").value);
+  }
+}
+
+/* ── 표면 겹쳐 보기 ── */
+async function setSurface(on){
+  state.surfaceOn = on;
+  $("btnSurface").classList.toggle("on", on);
+  for(const [v, s] of [[viewerA, state.A],[viewerB, state.B]]){
+    if(!s || !s.enzyme) continue;
+    if(on && !s.surface){
+      s.surface = await v.plugin.builders.structure.representation.addRepresentation(s.enzyme,
+        { type:"molecular-surface", typeParams:{ alpha:0.35, quality:"medium" }, ...themeFor($("selEnz").value, $("colEnz").value) });
+    }else if(!on && s.surface){
+      await v.plugin.state.data.build().delete(s.surface.ref).commit();
+      s.surface = null;
+    }
+  }
+}
+
+/* ── 기질 부위 확대 / 전체 보기 ── */
+function focusSubstrate(){
+  const s = state.B;
+  if(!s || !s.subs.length){ $("statusB").textContent = "이 구조에는 기질로 표시할 분자가 없습니다."; return; }
+  let sphere = null;
+  for(const c of s.subs){
+    const sp = c.obj && c.obj.data && c.obj.data.boundary.sphere;
+    if(sp && (!sphere || sp.radius > sphere.radius)) sphere = sp;
+  }
+  if(sphere) viewerB.plugin.managers.camera.focusSphere(sphere, { extraRadius:6, durationMs:300 });
+}
+function resetView(){
+  viewerA.plugin.managers.camera.reset(undefined, 300);
+  viewerB.plugin.managers.camera.reset(undefined, 300);
+}
+
+/* ── 회전 동기화: 방향(시선·위쪽)만 복사하고 거리는 각자 유지 ── */
+function snap(v){ const c = v.plugin.canvas3d.camera.state; return { p:[...c.position], t:[...c.target], u:[...c.up] }; }
+function same(a, b){ if(!a||!b) return false; for(const k of ["p","t","u"]) for(let i=0;i<3;i++) if(Math.abs(a[k][i]-b[k][i])>1e-4) return false; return true; }
+function copyOrientation(src, dst){
+  const a = src.plugin.canvas3d.camera.state, b = dst.plugin.canvas3d.camera.state;
+  const d = [a.position[0]-a.target[0], a.position[1]-a.target[1], a.position[2]-a.target[2]];
+  const la = Math.hypot(...d) || 1;
+  const lb = Math.hypot(b.position[0]-b.target[0], b.position[1]-b.target[1], b.position[2]-b.target[2]) || 1;
+  const pos = [b.target[0]+d[0]/la*lb, b.target[1]+d[1]/la*lb, b.target[2]+d[2]/la*lb];
+  dst.plugin.canvas3d.camera.setState({ position:pos, up:[a.up[0],a.up[1],a.up[2]] }, 0);
+}
+function attachSync(key, src, otherKey, dst){
+  src.plugin.canvas3d.didDraw.subscribe(() => {
+    if(!state.syncOn || state.syncing) return;
+    const now = snap(src);
+    if(same(now, state.last[key])) { return; }
+    state.syncing = true;
+    try{ copyOrientation(src, dst); state.last[key] = now; state.last[otherKey] = snap(dst); }
+    finally{ state.syncing = false; }
+  });
+}
+
+/* ── 프리셋 / 직접 입력 ── */
+async function show(apo, holo, preset){
+  apo = apo.toUpperCase(); holo = holo.toUpperCase();
+  $("idA").textContent = "PDB " + apo; $("idB").textContent = "PDB " + holo;
+  $("inA").value = apo; $("inB").value = holo;
+  $("lnkRcsb").href = "https://www.rcsb.org/structure/" + holo;
+  $("lnkNcbi").href = "https://www.ncbi.nlm.nih.gov/Structure/icn3d/full.html?pdbid=" + holo;
+  $("note").innerHTML = preset
+    ? `<h3>${preset.title}</h3><p>${preset.body}</p><ol>${preset.steps.map(s=>`<li>${s}</li>`).join("")}</ol>`
+    : `<h3>직접 입력한 구조</h3><p>왼쪽과 오른쪽을 같은 방향으로 돌려 활성 부위의 모양 변화를 비교해 보세요. 뼈대가 거의 그대로면 열쇠-자물쇠 모델에, 크게 바뀌면 유도 적합 모델에 가깝습니다.</p>`;
+  document.querySelectorAll(".preset").forEach(b => b.classList.toggle("active", !!preset && b.dataset.idx == PRESETS.indexOf(preset)));
+  state.A = state.B = null; state.surfaceOn = false; $("btnSurface").classList.remove("on");
+  state.siteOn = false; $("btnSite").classList.remove("on");
+  const wasSync = state.syncOn; state.syncOn = false;
+  const [ra, rb] = await Promise.allSettled([
+    loadStructure(viewerA, apo, $("statusA")),
+    loadStructure(viewerB, holo, $("statusB"))
+  ]);
+  const hint = "드래그: 회전 · 휠: 확대 · 우클릭: 이동";
+  if(ra.status === "fulfilled"){ state.A = ra.value; $("statusA").textContent = hint; } else $("statusA").textContent = apo + " 을(를) 불러오지 못했습니다. ID와 인터넷 연결을 확인하세요.";
+  if(rb.status === "fulfilled"){ state.B = rb.value; $("statusB").textContent = hint; } else $("statusB").textContent = holo + " 을(를) 불러오지 못했습니다. ID와 인터넷 연결을 확인하세요.";
+  state.last.A = snap(viewerA); state.last.B = snap(viewerB);
+  state.syncOn = wasSync;
+}
+
+async function makeViewer(id){
+  return molstar.Viewer.create(id, {
+    layoutIsExpanded:false, layoutShowControls:false, layoutShowRemoteState:false,
+    layoutShowSequence:false, layoutShowLog:false, layoutShowLeftPanel:false,
+    viewportShowExpand:true, viewportShowSelectionMode:false, viewportShowAnimation:false,
+    pdbProvider:"rcsb", emdbProvider:"rcsb"
+  });
+}
+
+(async () => {
+  const wrap = $("presets");
+  PRESETS.forEach((p, i) => {
+    const b = document.createElement("button");
+    b.className = "preset"; b.dataset.model = p.model; b.dataset.idx = i;
+    b.innerHTML = `${p.name}<small>${p.sub}</small>`;
+    b.onclick = () => show(p.apo, p.holo, p);
+    wrap.appendChild(b);
+  });
+  $("sheetRows").innerHTML = PRESETS.map(p => `<tr><td>${p.name}</td><td>${p.apo} / ${p.holo}</td><td class="blank"></td><td></td><td></td></tr>`).join("")
+    + `<tr><td>(직접 고른 효소)</td><td></td><td class="blank"></td><td></td><td></td></tr>`;
+
+  $("loadBtn").onclick = () => { const a = $("inA").value.trim(), b = $("inB").value.trim(); if(a.length===4 && b.length===4) show(a, b, null); };
+  $("btnFocus").onclick = focusSubstrate;
+  $("btnReset").onclick = resetView;
+  $("btnSurface").onclick = () => setSurface(!state.surfaceOn);
+  $("btnSync").onclick = () => { state.syncOn = !state.syncOn; $("btnSync").classList.toggle("on", state.syncOn); if(state.syncOn){ state.last.A = snap(viewerA); state.last.B = snap(viewerB); } };
+  $("btnAlign").onclick = () => { state.syncing = true; copyOrientation(viewerA, viewerB); state.syncing = false; state.last.A = snap(viewerA); state.last.B = snap(viewerB); };
+  ["selEnz","colEnz","selSub","colSub","colSite"].forEach(id => $(id).addEventListener("input", applyColors));
+  $("btnSite").onclick = () => setSite(!state.siteOn);
+  $("selRadius").onchange = () => { if(state.siteOn) setSite(true); };
+  $("chkDim").onchange = () => { if(state.siteOn) dimEnzyme($("chkDim").checked); };
+  $("btnPrint").onclick = () => { $("sheet").open = true; window.print(); };
+  $("swEnz").style.background = $("colEnz").value; $("swSub").style.background = $("colSub").value;
+
+  [viewerA, viewerB] = await Promise.all([makeViewer("viewerA"), makeViewer("viewerB")]);
+  attachSync("A", viewerA, "B", viewerB);
+  attachSync("B", viewerB, "A", viewerA);
+  show(PRESETS[2].apo, PRESETS[2].holo, PRESETS[2]);
+})();
+</script>
+</body>
+</html>
